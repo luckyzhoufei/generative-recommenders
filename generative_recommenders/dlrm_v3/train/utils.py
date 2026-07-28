@@ -442,6 +442,12 @@ def train_loop(
         for sample in dataloader:
             optimizer.zero_grad()
             sample.to(device)
+            # candidates_user_embeddings,
+            # candidates_item_embeddings,
+            # aux_losses,
+            # mt_target_preds,
+            # mt_target_labels,
+            # mt_target_weights,
             (
                 _,
                 _,

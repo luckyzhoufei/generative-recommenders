@@ -135,7 +135,7 @@ class DlrmHSTU(HammerModule):
 
         if not is_dense:
             self._embedding_collection: EmbeddingCollection = EmbeddingCollection(
-                tables=list(embedding_tables.values()),
+                tables=list(embedding_tables.values()),   # 配置不同feature embed维度
                 need_indices=False,
                 device=torch.device("meta"),
             )
@@ -241,6 +241,8 @@ class DlrmHSTU(HammerModule):
             ],
             is_inference=is_inference,
         )
+
+        # user embeddings
         self._hstu_transducer: HSTUTransducer = HSTUTransducer(
             stu_module=stu_module,
             input_preprocessor=preprocessor,
@@ -407,6 +409,7 @@ class DlrmHSTU(HammerModule):
         item_embeddings = self._item_embedding_mlp(all_embeddings)
         return item_embeddings
 
+    # KeyedJaggedTensor : values:[], lengths:[], keys:[]
     def preprocess(
         self,
         uih_features: KeyedJaggedTensor,
@@ -478,6 +481,7 @@ class DlrmHSTU(HammerModule):
             torch.ops.fbgemm.asynchronous_complete_cumsum(num_candidates)
         )
 
+        # 字典，包含了user 和 item 的feature embedding
         seq_embeddings = {
             k: SequenceEmbedding(
                 lengths=seq_embeddings_dict[k].lengths(),
@@ -489,7 +493,7 @@ class DlrmHSTU(HammerModule):
 
         return (
             seq_embeddings,
-            payload_features,
+            payload_features,   # 不是embedding
             max_uih_len,
             uih_seq_lengths,
             max_num_candidates,
@@ -499,7 +503,7 @@ class DlrmHSTU(HammerModule):
     def main_forward(
         self,
         seq_embeddings: Dict[str, SequenceEmbedding],
-        payload_features: Dict[str, torch.Tensor],
+        payload_features: Dict[str, torch.Tensor],   # 不是embedding
         max_uih_len: int,
         uih_seq_lengths: torch.Tensor,
         max_num_candidates: int,
@@ -569,6 +573,7 @@ class DlrmHSTU(HammerModule):
                 )
             )
 
+        # sum(aux_losses)用于backward
         aux_losses: Dict[str, torch.Tensor] = {}
         if not self._is_inference and self.training:
             for i, task in enumerate(self._multitask_configs):

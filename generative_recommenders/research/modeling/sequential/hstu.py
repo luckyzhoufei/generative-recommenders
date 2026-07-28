@@ -71,6 +71,11 @@ class RelativePositionalBias(RelativeAttentionBiasModule):
             torch.empty(2 * max_seq_len - 1).normal_(mean=0, std=0.02),
         )
 
+    #[a b c d e]
+    #[b a b c d]
+    #[c b a b c]
+    #[d c b a b]
+    #[e d c b a]
     def forward(
         self,
         all_timestamps: torch.Tensor,
@@ -81,6 +86,7 @@ class RelativePositionalBias(RelativeAttentionBiasModule):
         t = t[..., :-n].reshape(1, n, 3 * n - 2)
         r = (2 * n - 1) // 2
         return t[..., r:-r]
+
 
 
 class RelativeBucketedTimeAndPositionBasedBias(RelativeAttentionBiasModule):
@@ -256,8 +262,8 @@ class SequentialTransductionUnitJagged(torch.nn.Module):
                 torch.empty(
                     (
                         embedding_dim,
-                        linear_hidden_dim * 2 * num_heads
-                        + attention_dim * num_heads * 2,
+                        linear_hidden_dim * 2 * num_heads   # u v
+                        + attention_dim * num_heads * 2,   # q k
                     )
                 ).normal_(mean=0, std=0.02),
             )
@@ -314,7 +320,7 @@ class SequentialTransductionUnitJagged(torch.nn.Module):
             x = x[delta_x_offsets[0], :]
             cached_v, cached_q, cached_k, cached_outputs = cache
 
-        normed_x = self._norm_input(x)
+        normed_x = self._norm_input(x)   # layer norm
 
         if self._linear_config == "uvqk":
             batched_mm_output = torch.mm(normed_x, self._uvqk)
