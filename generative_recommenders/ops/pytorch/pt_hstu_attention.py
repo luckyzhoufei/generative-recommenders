@@ -33,18 +33,18 @@ except OSError:
 def _get_valid_attn_mask(
     device: torch.device,
     causal: bool,
-    N: int,
-    seq_lengths: torch.Tensor,
+    N: int,   # 最大序列长度
+    seq_lengths: torch.Tensor,   # 每个样本真实长度
     num_targets: Optional[torch.Tensor] = None,
     max_attn_len: int = 0,
-    contextual_seq_len: int = 0,
+    contextual_seq_len: int = 0, # 前缀contextual token长度
     min_full_attn_seq_len: int = 0,
 ) -> torch.Tensor:
     ids = torch.arange(0, N, device=device).view(1, N)
     max_ids = seq_lengths.view(-1, 1, 1)
     if contextual_seq_len > 0:
         ids = ids - contextual_seq_len + 1
-        ids = torch.clamp(ids, min=0)
+        ids = torch.clamp(ids, min=0)  # clamp会把小于min的元素替换成min
         max_ids = max_ids - contextual_seq_len + 1
     if num_targets is not None:
         max_ids = max_ids - num_targets.view(-1, 1, 1)
@@ -161,7 +161,7 @@ def pytorch_hstu_mha(
                 .unsqueeze(1)
                 .to(qk_attn.dtype)
             )
-
+        # silu = x * sigmod(x)
         qk_attn = F.silu(qk_attn) * attn_scale
     else:
         qk_attn = F.silu(qk_attn) / max_seq_len

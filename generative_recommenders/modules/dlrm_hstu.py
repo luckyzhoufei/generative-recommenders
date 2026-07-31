@@ -83,8 +83,8 @@ class DlrmHSTUConfig:
     candidates_querytime_feature_name: str = ""
     causal_multitask_weights: float = 0.2
     multitask_configs: List[TaskConfig] = field(default_factory=list)
-    user_embedding_feature_names: List[str] = field(default_factory=list)
-    item_embedding_feature_names: List[str] = field(default_factory=list)
+    user_embedding_feature_names: List[str] = field(default_factory=list)   # ["movie_id", "user_id", "sex","age_group", "occupation","zip_code",]
+    item_embedding_feature_names: List[str] = field(default_factory=list)   # ["item_movie_id",]
     uih_post_id_feature_name: str = ""
     uih_action_time_feature_name: str = ""
     uih_weight_feature_name: str = ""
@@ -346,8 +346,9 @@ class DlrmHSTU(HammerModule):
             kernel=self.hammer_kernel(),
         ).squeeze(-1)
         total_targets = int(num_candidates.sum().item())
+        # 对embedding进行了过滤
         embedding = seq_embeddings[
-            self._hstu_configs.uih_post_id_feature_name
+            self._hstu_configs.uih_post_id_feature_name  # "movie_id"
         ].embedding
         dtype = embedding.dtype
         if (not self.is_inference) and self._bf16_training:
@@ -402,7 +403,7 @@ class DlrmHSTU(HammerModule):
         all_embeddings = torch.cat(
             [
                 seq_embeddings[name].embedding
-                for name in self._hstu_configs.item_embedding_feature_names
+                for name in self._hstu_configs.item_embedding_feature_names   # "item_movie_id"
             ],
             dim=-1,
         )
@@ -503,7 +504,7 @@ class DlrmHSTU(HammerModule):
     def main_forward(
         self,
         seq_embeddings: Dict[str, SequenceEmbedding],
-        payload_features: Dict[str, torch.Tensor],   # 不是embedding
+        payload_features: Dict[str, torch.Tensor],   # 不是embedding，里面包含offsets
         max_uih_len: int,
         uih_seq_lengths: torch.Tensor,
         max_num_candidates: int,
@@ -516,11 +517,19 @@ class DlrmHSTU(HammerModule):
         Optional[torch.Tensor],
         Optional[torch.Tensor],
     ]:
+        # 这里拼接了历史id和候选id
         # merge uih and candidates embeddings
         for (
             uih_feature_name,
             candidate_feature_name,
         ) in self._hstu_configs.merge_uih_candidate_feature_mapping:
+            # merge_uih_candidate_feature_mapping = [
+            #     ("movie_id", "item_movie_id"),
+            #     ("movie_rating", "item_movie_rating"),
+            #     ("action_timestamp", "item_query_time"),
+            #     ("item_weights", "item_action_weights"),
+            #     ("dummy_watch_time", "item_dummy_watchtime"),
+            # ]
             if uih_feature_name in seq_embeddings:
                 seq_embeddings[uih_feature_name] = SequenceEmbedding(
                     lengths=uih_seq_lengths + num_candidates,
@@ -600,10 +609,11 @@ class DlrmHSTU(HammerModule):
         Optional[torch.Tensor],
         Optional[torch.Tensor],
     ]:
+        # 原始特征转化，区分embedding和非embedding
         with record_function("## preprocess ##"):
             (
                 seq_embeddings,
-                payload_features,
+                payload_features,   # 里面包含offsets
                 max_uih_len,
                 uih_seq_lengths,
                 max_num_candidates,

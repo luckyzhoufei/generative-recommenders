@@ -105,6 +105,7 @@ def get_contextual_input_embeddings(
     return torch.cat(padded_values, dim=1)
 
 
+# call in HSTUTransducer 主要对user embedding生效
 class ContextualPreprocessor(InputPreprocessor):
     def __init__(
         self,

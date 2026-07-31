@@ -21,18 +21,18 @@ import torch.nn.functional as F
 
 
 def pytorch_norm_mul_dropout(
-    x: torch.Tensor,
-    u: torch.Tensor,
+    x: torch.Tensor,   # 注意力输出
+    u: torch.Tensor,   # 门控信号
     weight: torch.Tensor,
     bias: torch.Tensor,
     eps: float,
     dropout_ratio: float,
     training: bool,
-    silu_u: bool = False,
+    silu_u: bool = False,   # 是否对u再做一次silu
     concat_u: bool = False,
     concat_x: bool = False,
     mul_u_activation_type: str = "none",
-    group_norm: bool = False,
+    group_norm: bool = False,  # 是否使用group代替layer norm
     num_heads: int = 1,
     linear_dim: int = -1,
 ) -> torch.Tensor:
